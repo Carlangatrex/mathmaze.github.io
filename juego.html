@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+  <!-- [Previous head and style sections remain the same] -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>El Laberinto Matemático del Científico</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
+
+      body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(45deg, #1a1a2e, #16213e);
+        font-family: "Press Start 2P", cursive;
+      }
+
+      #gameContainer {
+        position: relative;
+        width: 800px;
+        height: 600px;
+        box-shadow: 0 0 20px rgba(0, 0, 255, 0.5);
+      }
+
+      #startButton {
+        padding: 15px 30px;
+        font-size: 20px;
+        margin: 20px;
+        background: #4caf50;
+        border: none;
+        color: white;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: "Press Start 2P", cursive;
+      }
+
+      #startButton:hover {
+        background: #45a049;
+      }
+
+      .game-title {
+        color: #fff;
+        text-align: center;
+        font-size: 24px;
+        margin-bottom: 20px;
+        text-shadow: 0 0 10px #00ff00;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 class="game-title">El Laberinto Matemático</h1>
+    <button id="startButton">Iniciar Juego</button>
+    <div id="gameContainer"></div>
+
+    <script>
+      // [Previous button click handler remains the same]
+      document
+        .getElementById("startButton")
+        .addEventListener("click", function () {
+          this.style.display = "none";
+          startGame();
+        });
+
+      function startGame() {
+        let gameScene = new Phaser.Scene("GameScene");
+
+        const config = {
+          type: Phaser.AUTO,
+          parent: "gameContainer",
+          width: 800,
+          height: 600,
+          backgroundColor: "#1a1a2e",
+          physics: {
+            default: "arcade",
+            arcade: {
+              gravity: { y: 0 },
+              debug: false,
+            },
+          },
+          scene: gameScene,
+        };
+
+        const game = new Phaser.Game(config);
+
+        let player;
+        let doors = [];
+        let walls = [];
+        let score = 0;
+        let currentLevel = 1;
+        let scoreText;
+        let levelText;
+        let cursors;
+        let currentScene;
+
+        // Nuevos mapas con caminos accesibles garantizados
+        const MAZE_CONFIG = [
+          // Nivel 1 - Sumas (Caminos accesibles y más fácil)
+          [
+            "WWWWWWWWWWWWWWWW",
+            "W P           D W",
+            "W W WWWWWWW WWW W",
+            "W W       W     W",
+            "W WWWWW W WWWWW W",
+            "W     W W     W W",
+            "W WWW W WWWWW W W",
+            "W W   W     W D W",
+            "W W WWWWWWW WWW W",
+            "W W         W D W",
+            "W WWWWWWWWW     W",
+            "WWWWWWWWWWWWWWWW",
+          ],
+          // Nivel 2 - Restas (Laberinto más complejo pero accesible)
+          [
+            "WWWWWWWWWWWWWWWW",
+            "W P  W     W D W",
+            "W WW W WWW W W W",
+            "W    W   W   W W",
+            "W WWWW W WWWWW W",
+            "W D    W       W",
+            "W WWWWWW WWWWW W",
+            "W        W D   W",
+            "W WWWWWW W WWW W",
+            "W D      W     W",
+            "W WWWWWWWW     W",
+            "WWWWWWWWWWWWWWWW",
+          ],
+          // Nivel 3 - Multiplicación (Múltiples rutas)
+          [
+            "WWWWWWWWWWWWWWWW",
+            "W P      W     W",
+            "W WWWWW  W  W  W",
+            "W     W  W  W  W",
+            "WWWW  W  W  W  W",
+            "W D    W    W  W",
+            "W WWWWWW WW W  W",
+            "W        W  W D W",
+            "W WWWWWWWW  W  W",
+            "W D           W W",
+            "W WWWWWWWWWW   W",
+            "WWWWWWWWWWWWWWWW",
+          ],
+          // Nivel 4 - División (Complejo pero con caminos garantizados)
+          [
+            "WWWWWWWWWWWWWWWW",
+            "W P        W D W",
+            "W WWWWWWW  W W W",
+            "W       W    W W",
+            "WWWWWW  WWWWWW W",
+            "W D     W      W",
+            "W WWWWWWW WWWW W",
+            "W         W D  W",
+            "W WWWWWWWWW WW W",
+            "W D           W W",
+            "W WWWWWWWWWW   W",
+            "WWWWWWWWWWWWWWWW",
+          ],
+        ];
+
+        // [Rest of the game logic remains the same]
+        gameScene.preload = function () {
+          // Preload assets if needed
+        };
+
+        function createMaze(scene, level) {
+          // Clear existing objects
+          walls.forEach((wall) => wall.destroy());
+          doors.forEach((door) => door.destroy());
+          if (player) player.destroy();
+
+          walls = [];
+          doors = [];
+
+          const maze = MAZE_CONFIG[level - 1];
+          const tileSize = 50;
+
+          for (let y = 0; y < maze.length; y++) {
+            for (let x = 0; x < maze[y].length; x++) {
+              const xPos = x * tileSize;
+              const yPos = y * tileSize;
+
+              switch (maze[y][x]) {
+                case "W": // Wall
+                  const wall = scene.add.rectangle(
+                    xPos + tileSize / 2,
+                    yPos + tileSize / 2,
+                    tileSize,
+                    tileSize,
+                    0x4a4a4a
+                  );
+                  scene.physics.add.existing(wall, true);
+                  walls.push(wall);
+                  break;
+                case "P": // Player
+                  player = scene.add.rectangle(
+                    xPos + tileSize / 2,
+                    yPos + tileSize / 2,
+                    tileSize - 10,
+                    tileSize - 10,
+                    0x00ff00
+                  );
+                  scene.physics.add.existing(player, false);
+                  player.body.setCollideWorldBounds(true);
+                  break;
+                case "D": // Door
+                  const door = scene.add.rectangle(
+                    xPos + tileSize / 2,
+                    yPos + tileSize / 2,
+                    tileSize,
+                    tileSize,
+                    0x8b4513
+                  );
+                  scene.physics.add.existing(door, true);
+                  door.isOpen = false;
+                  doors.push(door);
+                  break;
+              }
+            }
+          }
+
+          // Add collisions
+          walls.forEach((wall) => {
+            scene.physics.add.collider(player, wall);
+          });
+
+          doors.forEach((door) => {
+            scene.physics.add.collider(
+              player,
+              door,
+              () => handleDoorCollision(scene, door),
+              null,
+              scene
+            );
+          });
+        }
+
+        gameScene.create = function () {
+          currentScene = this;
+          cursors = this.input.keyboard.createCursorKeys();
+          createMaze(this, currentLevel);
+
+          scoreText = this.add.text(16, 16, "Puntos: 0", {
+            fontSize: "24px",
+            fill: "#fff",
+            fontFamily: "Press Start 2P",
+          });
+
+          levelText = this.add.text(16, 50, `Nivel ${currentLevel}`, {
+            fontSize: "24px",
+            fill: "#fff",
+            fontFamily: "Press Start 2P",
+          });
+
+          this.add
+            .text(400, 550, "Usa las flechas para moverte", {
+              fontSize: "16px",
+              fill: "#fff",
+              fontFamily: "Press Start 2P",
+            })
+            .setOrigin(0.5);
+        };
+
+        function handleDoorCollision(scene, door) {
+          if (!door.isOpen) {
+            const problem = generateProblem(currentLevel);
+            const answer = prompt(problem.question);
+
+            if (parseInt(answer) === problem.answer) {
+              door.isOpen = true;
+              door.destroy();
+              doors = doors.filter((d) => d !== door);
+              score += 20;
+              scoreText.setText("Puntos: " + score);
+
+              if (doors.length === 0) {
+                if (currentLevel < 4) {
+                  currentLevel++;
+                  levelText.setText(`Nivel ${currentLevel}`);
+                  createMaze(scene, currentLevel);
+                } else {
+                  endGame(scene);
+                }
+              }
+            }
+          }
+        }
+
+        function generateProblem(level) {
+          const num1 = Phaser.Math.Between(1, 10);
+          const num2 = Phaser.Math.Between(1, 10);
+
+          switch (level) {
+            case 1:
+              return {
+                question: `¿Cuánto es ${num1} + ${num2}?`,
+                answer: num1 + num2,
+              };
+            case 2:
+              return {
+                question: `¿Cuánto es ${num1 + num2} - ${num1}?`,
+                answer: num2,
+              };
+            case 3:
+              return {
+                question: `¿Cuánto es ${num1} × ${num2}?`,
+                answer: num1 * num2,
+              };
+            case 4:
+              return {
+                question: `¿Cuánto es ${num1 * num2} ÷ ${num1}?`,
+                answer: num2,
+              };
+          }
+        }
+
+        function endGame(scene) {
+          scene.add
+            .text(
+              400,
+              300,
+              "¡Felicidades!\nHas completado el juego!\nPuntaje Final: " +
+                score,
+              {
+                fontSize: "32px",
+                fill: "#fff",
+                fontFamily: "Press Start 2P",
+                align: "center",
+              }
+            )
+            .setOrigin(0.5);
+
+          scene.physics.pause();
+          player.body.setVelocity(0);
+        }
+
+        gameScene.update = function () {
+          if (cursors.left.isDown) {
+            player.body.setVelocityX(-160);
+          } else if (cursors.right.isDown) {
+            player.body.setVelocityX(160);
+          } else {
+            player.body.setVelocityX(0);
+          }
+
+          if (cursors.up.isDown) {
+            player.body.setVelocityY(-160);
+          } else if (cursors.down.isDown) {
+            player.body.setVelocityY(160);
+          } else {
+            player.body.setVelocityY(0);
+          }
+        };
+      }
+    </script>
+  </body>
+</html>
