@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
-  <!-- [Previous head and style sections remain the same] -->
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>El Laberinto Matemático del Científico</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.55.2/phaser.min.js"></script>
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap");
 
@@ -19,343 +17,680 @@
         min-height: 100vh;
         background: linear-gradient(45deg, #1a1a2e, #16213e);
         font-family: "Press Start 2P", cursive;
+        overflow: hidden;
       }
 
       #gameContainer {
         position: relative;
         width: 800px;
         height: 600px;
-        box-shadow: 0 0 20px rgba(0, 0, 255, 0.5);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.7);
+        border-radius: 10px;
+        overflow: hidden;
       }
 
       #startButton {
         padding: 15px 30px;
         font-size: 20px;
         margin: 20px;
-        background: #4caf50;
+        background: linear-gradient(to right, #4caf50, #45a049);
         border: none;
         color: white;
-        border-radius: 5px;
+        border-radius: 10px;
         cursor: pointer;
         font-family: "Press Start 2P", cursive;
+        box-shadow: 0 5px 15px rgba(0, 255, 0, 0.3);
+        transition: all 0.3s ease;
       }
 
       #startButton:hover {
-        background: #45a049;
+        transform: scale(1.05);
+        box-shadow: 0 10px 20px rgba(0, 255, 0, 0.5);
       }
 
       .game-title {
         color: #fff;
         text-align: center;
-        font-size: 24px;
+        font-size: 32px;
         margin-bottom: 20px;
-        text-shadow: 0 0 10px #00ff00;
+        text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+        animation: glow 2s infinite alternate;
+      }
+
+      @keyframes glow {
+        from {
+          text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+        }
+        to {
+          text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff, 0 0 40px #00ffff;
+        }
+      }
+
+      .instructions {
+        color: #fff;
+        text-align: center;
+        font-size: 14px;
+        margin: 20px auto;
+        max-width: 700px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #00ffff;
+      }
+
+      #videoContainer {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      #introVideo {
+        max-width: 80%;
+        max-height: 80%;
+        border-radius: 15px;
+        border: 3px solid #00ffff;
+        box-shadow: 0 0 30px #00ffff;
+      }
+
+      #skipButton {
+        margin-top: 20px;
+        padding: 10px 20px;
+        background: #ff5722;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-family: "Press Start 2P", cursive;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      #skipButton:hover {
+        background: #ff7043;
+        transform: scale(1.05);
       }
     </style>
   </head>
   <body>
-    <h1 class="game-title">El Laberinto Matemático</h1>
-    <button id="startButton">Iniciar Juego</button>
+    <div id="videoContainer">
+      <video id="introVideo" width="800" controls>
+        <source src="Videos/videojuego.mp4" type="video/mp4" />
+        Tu navegador no soporta videos HTML5.
+      </video>
+      <button id="skipButton">Saltar Intro</button>
+    </div>
+
+    <h1 class="game-title">El Laberinto Matemático del Científico</h1>
+    <div class="instructions">
+      Ayuda al científico a encontrar la calculadora perdida atravesando el
+      laberinto. ¡Usa las flechas del teclado para moverte! Deberás abrir
+      puertas resolviendo operaciones matemáticas y evitar a los villanos. Cada
+      nivel presenta un desafío matemático diferente: ¡sumas, restas,
+      multiplicaciones y divisiones!
+    </div>
+    <button id="startButton">¡Iniciar Aventura!</button>
     <div id="gameContainer"></div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
     <script>
-      // [Previous button click handler remains the same]
-      document
-        .getElementById("startButton")
-        .addEventListener("click", function () {
-          this.style.display = "none";
-          startGame();
-        });
+      let game;
+      let player;
+      let walls = [];
+      let doors = [];
+      let treasures = [];
+      let villain;
+      let calculator;
+      let currentLevel = 1;
+      let score = 0;
+      let gameStarted = false;
+      let gameOver = false;
+      let playerImg;
+      let wallImg;
+      let floorImg;
+      let doorImg;
+      let villainDirection = 1;
 
-      function startGame() {
-        let gameScene = new Phaser.Scene("GameScene");
-
-        const config = {
-          type: Phaser.AUTO,
-          parent: "gameContainer",
-          width: 800,
-          height: 600,
-          backgroundColor: "#1a1a2e",
-          physics: {
-            default: "arcade",
-            arcade: {
-              gravity: { y: 0 },
-              debug: false,
-            },
+      const GAME_CONFIG = {
+        levels: [
+          {
+            operation: "suma",
+            villain: { name: "Suma Sum", image: "images/villain1.png" },
+            treasure: { name: "Regla Numérica", image: "images/treasure1.png" },
+            maze: [
+              "WWWWWWWWWWWWWWWW",
+              "W P           W W",
+              "W W WWWWWWW WWW W",
+              "W W       W  D  W",
+              "W WWWWW W WWWWW W",
+              "W     W W     W W",
+              "W WWW W WWWWW W W",
+              "W W   W     W D W",
+              "W W WWWWWWW WW  W",
+              "W W    D    W D W",
+              "W WWWWWWWWW     W",
+              "WWWWWWWWWWWWWWWW",
+            ],
           },
-          scene: gameScene,
-        };
+          {
+            operation: "resta",
+            villain: { name: "Resta Rest", image: "images/villain2.png" },
+            treasure: { name: "Lápiz Mágico", image: "images/treasure2.png" },
+            maze: [
+              "WWWWWWWWWWWWWWWW",
+              "W P  W     W D W",
+              "W WW W WWW W W W",
+              "W    W   W   W W",
+              "W WWWW W WWWWW W",
+              "W D    W       W",
+              "W WWWWWW WWWWW W",
+              "W        W D   W",
+              "W WWWWWW W WWW W",
+              "W D      W     W",
+              "W WWWWWWWW     W",
+              "WWWWWWWWWWWWWWWW",
+            ],
+          },
+          {
+            operation: "multiplicación",
+            villain: { name: "Multi Ply", image: "images/villain3.png" },
+            treasure: {
+              name: "Compás Cuántico",
+              image: "images/treasure3.png",
+            },
+            maze: [
+              "WWWWWWWWWWWWWWWW",
+              "W P      W     W",
+              "W WWWWW  W  W  W",
+              "W     W  W  W  W",
+              "WWWW  W  W  W  W",
+              "W D    W    W  W",
+              "W WWWWWW WW W  W",
+              "W        W  W D W",
+              "W WWWWWWWW  W  W",
+              "W D           W W",
+              "W WWWWWWWW D   W",
+              "WWWWWWWWWWWWWWWW",
+            ],
+          },
+          {
+            operation: "división",
+            villain: { name: "Divi Sor", image: "images/villain4.png" },
+            treasure: {
+              name: "Corona Matemática",
+              image: "images/treasure4.png",
+            },
+            maze: [
+              "WWWWWWWWWWWWWWWW",
+              "W P        W D W",
+              "W WWWWWWW  W W W",
+              "W       W    W W",
+              "WWWWWW  WWWWWW W",
+              "W D     W      W",
+              "W WWWWWWW WWWW W",
+              "W         W D  W",
+              "W WWWWWWWWW WW W",
+              "W D           W W",
+              "W WWWWWWWWWW   W",
+              "WWWWWWWWWWWWWWWW",
+            ],
+          },
+        ],
+        finalPrize: {
+          name: "Calculadora Cuántica",
+          image: "images/calculator.png",
+        },
+      };
 
-        const game = new Phaser.Game(config);
+      const SOUNDS = {
+        background: new Audio("sounds/background-music.mp3"),
+        doorOpen: new Audio("sounds/door_open.mp3"),
+        treasure: new Audio("sounds/treasure-collect.mp3"),
+        problem: new Audio("sounds/bossfight.mp3"),
+        correct: new Audio("sounds/correct.mp3"),
+        wrong: new Audio("sounds/wrong.mp3"),
+        damage: new Audio("sounds/damage.mp3"),
+        victory: new Audio("sounds/victory.mp3"),
+        gameOver: new Audio("sounds/game_over.mp3"),
+      };
 
-        let player;
-        let doors = [];
-        let walls = [];
-        let score = 0;
-        let currentLevel = 1;
-        let scoreText;
-        let levelText;
-        let cursors;
-        let currentScene;
+      function preload() {
+        playerImg = loadImage("images/scientist.png");
+        wallImg = loadImage("images/wall.png");
+        floorImg = loadImage("images/floor.png");
+        doorImg = loadImage("images/door.png");
+        GAME_CONFIG.levels.forEach((level) => {
+          level.villain.image = loadImage(level.villain.image);
+          level.treasure.image = loadImage(level.treasure.image);
+        });
+        GAME_CONFIG.finalPrize.image = loadImage(GAME_CONFIG.finalPrize.image);
+      }
 
-        // Nuevos mapas con caminos accesibles garantizados
-        const MAZE_CONFIG = [
-          // Nivel 1 - Sumas (Caminos accesibles y más fácil)
-          [
-            "WWWWWWWWWWWWWWWW",
-            "W P           D W",
-            "W W WWWWWWW WWW W",
-            "W W       W     W",
-            "W WWWWW W WWWWW W",
-            "W     W W     W W",
-            "W WWW W WWWWW W W",
-            "W W   W     W D W",
-            "W W WWWWWWW WWW W",
-            "W W         W D W",
-            "W WWWWWWWWW     W",
-            "WWWWWWWWWWWWWWWW",
-          ],
-          // Nivel 2 - Restas (Laberinto más complejo pero accesible)
-          [
-            "WWWWWWWWWWWWWWWW",
-            "W P  W     W D W",
-            "W WW W WWW W W W",
-            "W    W   W   W W",
-            "W WWWW W WWWWW W",
-            "W D    W       W",
-            "W WWWWWW WWWWW W",
-            "W        W D   W",
-            "W WWWWWW W WWW W",
-            "W D      W     W",
-            "W WWWWWWWW     W",
-            "WWWWWWWWWWWWWWWW",
-          ],
-          // Nivel 3 - Multiplicación (Múltiples rutas)
-          [
-            "WWWWWWWWWWWWWWWW",
-            "W P      W     W",
-            "W WWWWW  W  W  W",
-            "W     W  W  W  W",
-            "WWWW  W  W  W  W",
-            "W D    W    W  W",
-            "W WWWWWW WW W  W",
-            "W        W  W D W",
-            "W WWWWWWWW  W  W",
-            "W D           W W",
-            "W WWWWWWWWWW   W",
-            "WWWWWWWWWWWWWWWW",
-          ],
-          // Nivel 4 - División (Complejo pero con caminos garantizados)
-          [
-            "WWWWWWWWWWWWWWWW",
-            "W P        W D W",
-            "W WWWWWWW  W W W",
-            "W       W    W W",
-            "WWWWWW  WWWWWW W",
-            "W D     W      W",
-            "W WWWWWWW WWWW W",
-            "W         W D  W",
-            "W WWWWWWWWW WW W",
-            "W D           W W",
-            "W WWWWWWWWWW   W",
-            "WWWWWWWWWWWWWWWW",
-          ],
-        ];
+      function setup() {
+        createCanvas(800, 600).parent("gameContainer");
+        initializeGame();
+      }
 
-        // [Rest of the game logic remains the same]
-        gameScene.preload = function () {
-          // Preload assets if needed
-        };
+      function draw() {
+        if (!gameStarted || gameOver) return;
 
-        function createMaze(scene, level) {
-          // Clear existing objects
-          walls.forEach((wall) => wall.destroy());
-          doors.forEach((door) => door.destroy());
-          if (player) player.destroy();
+        background(50);
+        image(floorImg, 0, 0, width, height);
+        drawMaze();
+        drawPlayer();
+        drawDoors();
+        drawTreasures();
+        drawVillain();
+        drawCalculator();
+        showScore();
+        checkGameOver();
+        moveVillain();
+      }
 
-          walls = [];
-          doors = [];
+      function initializeGame() {
+        player = { x: 50, y: 50, size: 50 };
+        walls = [];
+        doors = [];
+        treasures = [];
+        villain = null;
+        calculator = null;
+        currentLevel = 1;
+        score = 0;
+        gameStarted = true;
+        gameOver = false;
+        createMaze();
+        SOUNDS.background.loop = true;
+        SOUNDS.background.volume = 0.5;
+        SOUNDS.background.play();
+      }
 
-          const maze = MAZE_CONFIG[level - 1];
-          const tileSize = 50;
+      function createMaze() {
+        const level = GAME_CONFIG.levels[currentLevel - 1];
+        const maze = level.maze;
 
-          for (let y = 0; y < maze.length; y++) {
-            for (let x = 0; x < maze[y].length; x++) {
-              const xPos = x * tileSize;
-              const yPos = y * tileSize;
-
-              switch (maze[y][x]) {
-                case "W": // Wall
-                  const wall = scene.add.rectangle(
-                    xPos + tileSize / 2,
-                    yPos + tileSize / 2,
-                    tileSize,
-                    tileSize,
-                    0x4a4a4a
-                  );
-                  scene.physics.add.existing(wall, true);
-                  walls.push(wall);
-                  break;
-                case "P": // Player
-                  player = scene.add.rectangle(
-                    xPos + tileSize / 2,
-                    yPos + tileSize / 2,
-                    tileSize - 10,
-                    tileSize - 10,
-                    0x00ff00
-                  );
-                  scene.physics.add.existing(player, false);
-                  player.body.setCollideWorldBounds(true);
-                  break;
-                case "D": // Door
-                  const door = scene.add.rectangle(
-                    xPos + tileSize / 2,
-                    yPos + tileSize / 2,
-                    tileSize,
-                    tileSize,
-                    0x8b4513
-                  );
-                  scene.physics.add.existing(door, true);
-                  door.isOpen = false;
-                  doors.push(door);
-                  break;
-              }
-            }
-          }
-
-          // Add collisions
-          walls.forEach((wall) => {
-            scene.physics.add.collider(player, wall);
-          });
-
-          doors.forEach((door) => {
-            scene.physics.add.collider(
-              player,
-              door,
-              () => handleDoorCollision(scene, door),
-              null,
-              scene
-            );
-          });
-        }
-
-        gameScene.create = function () {
-          currentScene = this;
-          cursors = this.input.keyboard.createCursorKeys();
-          createMaze(this, currentLevel);
-
-          scoreText = this.add.text(16, 16, "Puntos: 0", {
-            fontSize: "24px",
-            fill: "#fff",
-            fontFamily: "Press Start 2P",
-          });
-
-          levelText = this.add.text(16, 50, `Nivel ${currentLevel}`, {
-            fontSize: "24px",
-            fill: "#fff",
-            fontFamily: "Press Start 2P",
-          });
-
-          this.add
-            .text(400, 550, "Usa las flechas para moverte", {
-              fontSize: "16px",
-              fill: "#fff",
-              fontFamily: "Press Start 2P",
-            })
-            .setOrigin(0.5);
-        };
-
-        function handleDoorCollision(scene, door) {
-          if (!door.isOpen) {
-            const problem = generateProblem(currentLevel);
-            const answer = prompt(problem.question);
-
-            if (parseInt(answer) === problem.answer) {
-              door.isOpen = true;
-              door.destroy();
-              doors = doors.filter((d) => d !== door);
-              score += 20;
-              scoreText.setText("Puntos: " + score);
-
-              if (doors.length === 0) {
-                if (currentLevel < 4) {
-                  currentLevel++;
-                  levelText.setText(`Nivel ${currentLevel}`);
-                  createMaze(scene, currentLevel);
-                } else {
-                  endGame(scene);
-                }
-              }
+        for (let y = 0; y < maze.length; y++) {
+          for (let x = 0; x < maze[y].length; x++) {
+            if (maze[y][x] === "W") {
+              walls.push({ x: x * 50, y: y * 50, size: 50 });
+            } else if (maze[y][x] === "P") {
+              player.x = x * 50;
+              player.y = y * 50;
+            } else if (maze[y][x] === "D") {
+              doors.push({ x: x * 50, y: y * 50, size: 50, open: false });
             }
           }
         }
 
-        function generateProblem(level) {
-          const num1 = Phaser.Math.Between(1, 10);
-          const num2 = Phaser.Math.Between(1, 10);
+        // Posición del villano (V)
+        villain = {
+          x: 650, // Cambia esta coordenada para mover al villano
+          y: 500, // Cambia esta coordenada para mover al villano
+          size: 50,
+          name: level.villain.name,
+          image: level.villain.image,
+          defeated: false,
+        };
 
-          switch (level) {
-            case 1:
-              return {
-                question: `¿Cuánto es ${num1} + ${num2}?`,
-                answer: num1 + num2,
-              };
-            case 2:
-              return {
-                question: `¿Cuánto es ${num1 + num2} - ${num1}?`,
-                answer: num2,
-              };
-            case 3:
-              return {
-                question: `¿Cuánto es ${num1} × ${num2}?`,
-                answer: num1 * num2,
-              };
-            case 4:
-              return {
-                question: `¿Cuánto es ${num1 * num2} ÷ ${num1}?`,
-                answer: num2,
-              };
-          }
-        }
-
-        function endGame(scene) {
-          scene.add
-            .text(
-              400,
-              300,
-              "¡Felicidades!\nHas completado el juego!\nPuntaje Final: " +
-                score,
-              {
-                fontSize: "32px",
-                fill: "#fff",
-                fontFamily: "Press Start 2P",
-                align: "center",
-              }
-            )
-            .setOrigin(0.5);
-
-          scene.physics.pause();
-          player.body.setVelocity(0);
-        }
-
-        gameScene.update = function () {
-          if (cursors.left.isDown) {
-            player.body.setVelocityX(-160);
-          } else if (cursors.right.isDown) {
-            player.body.setVelocityX(160);
-          } else {
-            player.body.setVelocityX(0);
-          }
-
-          if (cursors.up.isDown) {
-            player.body.setVelocityY(-160);
-          } else if (cursors.down.isDown) {
-            player.body.setVelocityY(160);
-          } else {
-            player.body.setVelocityY(0);
-          }
+        // Posición de la calculadora (C)
+        calculator = {
+          x: 700, // Cambia esta coordenada para mover la calculadora
+          y: 500, // Cambia esta coordenada para mover la calculadora
+          size: 50,
+          image: GAME_CONFIG.finalPrize.image,
+          collected: false,
         };
       }
+
+      function drawMaze() {
+        walls.forEach((wall) =>
+          image(wallImg, wall.x, wall.y, wall.size, wall.size)
+        );
+      }
+
+      function drawPlayer() {
+        image(playerImg, player.x, player.y, player.size, player.size);
+      }
+
+      function drawDoors() {
+        doors.forEach((door) => {
+          if (!door.open) {
+            image(doorImg, door.x, door.y, door.size, door.size);
+          }
+        });
+      }
+
+      function drawTreasures() {
+        treasures.forEach((treasure) => {
+          image(
+            treasure.image,
+            treasure.x,
+            treasure.y,
+            treasure.size,
+            treasure.size
+          );
+        });
+      }
+
+      function drawVillain() {
+        if (villain && !villain.defeated) {
+          image(
+            villain.image,
+            villain.x,
+            villain.y,
+            villain.size,
+            villain.size
+          );
+        }
+      }
+
+      function drawCalculator() {
+        if (calculator && !calculator.collected) {
+          image(
+            calculator.image,
+            calculator.x,
+            calculator.y,
+            calculator.size,
+            calculator.size
+          );
+        }
+      }
+
+      function showScore() {
+        fill(255);
+        textSize(20);
+        text(`Puntos: ${score}`, 20, 30);
+      }
+
+      function keyPressed() {
+        if (!gameStarted || gameOver) return;
+
+        const speed = 50;
+        let newX = player.x;
+        let newY = player.y;
+
+        if (keyCode === LEFT_ARROW) newX -= speed;
+        if (keyCode === RIGHT_ARROW) newX += speed;
+        if (keyCode === UP_ARROW) newY -= speed;
+        if (keyCode === DOWN_ARROW) newY += speed;
+
+        if (!isCollision(newX, newY)) {
+          player.x = newX;
+          player.y = newY;
+          checkDoorCollision();
+          checkTreasureCollision();
+          checkVillainCollision();
+          checkCalculatorCollision();
+        }
+      }
+
+      function isCollision(x, y) {
+        for (let wall of walls) {
+          if (
+            x < wall.x + wall.size &&
+            x + player.size > wall.x &&
+            y < wall.y + wall.size &&
+            y + player.size > wall.y
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function checkDoorCollision() {
+        for (let door of doors) {
+          if (
+            !door.open &&
+            player.x < door.x + door.size &&
+            player.x + player.size > door.x &&
+            player.y < door.y + door.size &&
+            player.y + player.size > door.y
+          ) {
+            openDoor(door);
+          }
+        }
+      }
+
+      function openDoor(door) {
+        const level = GAME_CONFIG.levels[currentLevel - 1];
+        const operation = level.operation;
+        let num1 = int(random(1, 10));
+        let num2 = int(random(1, 10));
+        let answer;
+        let question;
+
+        switch (operation) {
+          case "suma":
+            answer = num1 + num2;
+            question = `¿Cuánto es ${num1} + ${num2}?`;
+            break;
+          case "resta":
+            answer = num1 - num2;
+            question = `¿Cuánto es ${num1} - ${num2}?`;
+            break;
+          case "multiplicación":
+            answer = num1 * num2;
+            question = `¿Cuánto es ${num1} × ${num2}?`;
+            break;
+          case "división":
+            answer = num1 / num2;
+            question = `¿Cuánto es ${num1} ÷ ${num2}?`;
+            break;
+        }
+
+        const userAnswer = parseInt(prompt(question));
+        if (userAnswer === answer) {
+          SOUNDS.correct.play();
+          SOUNDS.doorOpen.play();
+          door.open = true;
+          createTreasure(door.x + 2, door.y); // Tesoro aparece a 2 píxeles de la puerta
+          addScore(20);
+        } else {
+          SOUNDS.wrong.play();
+          alert("Respuesta incorrecta. Intenta de nuevo.");
+        }
+      }
+
+      function createTreasure(x, y) {
+        const level = GAME_CONFIG.levels[currentLevel - 1];
+        const treasure = {
+          x: x,
+          y: y,
+          size: 50,
+          image: level.treasure.image,
+          collected: false,
+        };
+        treasures.push(treasure);
+      }
+
+      function checkTreasureCollision() {
+        for (let treasure of treasures) {
+          if (
+            !treasure.collected &&
+            player.x < treasure.x + treasure.size &&
+            player.x + player.size > treasure.x &&
+            player.y < treasure.y + treasure.size &&
+            player.y + player.size > treasure.y
+          ) {
+            collectTreasure(treasure);
+          }
+        }
+      }
+
+      function collectTreasure(treasure) {
+        SOUNDS.treasure.play();
+        treasure.collected = true;
+        addScore(20);
+        treasures = treasures.filter((t) => t !== treasure);
+      }
+
+      function checkVillainCollision() {
+        if (
+          villain &&
+          !villain.defeated &&
+          player.x < villain.x + villain.size &&
+          player.x + player.size > villain.x &&
+          player.y < villain.y + villain.size &&
+          player.y + player.size > villain.y
+        ) {
+          confrontVillain();
+        }
+      }
+
+      function confrontVillain() {
+        let correctAnswers = 0;
+        const totalProblems = 4;
+        const level = GAME_CONFIG.levels[currentLevel - 1];
+        const operation = level.operation;
+
+        for (let i = 0; i < totalProblems; i++) {
+          let num1 = int(random(1, 10));
+          let num2 = int(random(1, 10));
+          let answer;
+          let question;
+
+          switch (operation) {
+            case "suma":
+              answer = num1 + num2;
+              question = `Problema ${
+                i + 1
+              }/${totalProblems}: ¿Cuánto es ${num1} + ${num2}?`;
+              break;
+            case "resta":
+              answer = num1 - num2;
+              question = `Problema ${
+                i + 1
+              }/${totalProblems}: ¿Cuánto es ${num1} - ${num2}?`;
+              break;
+            case "multiplicación":
+              answer = num1 * num2;
+              question = `Problema ${
+                i + 1
+              }/${totalProblems}: ¿Cuánto es ${num1} × ${num2}?`;
+              break;
+            case "división":
+              answer = num1 / num2;
+              question = `Problema ${
+                i + 1
+              }/${totalProblems}: ¿Cuánto es ${num1} ÷ ${num2}?`;
+              break;
+          }
+
+          const userAnswer = parseInt(prompt(question));
+          if (userAnswer === answer) {
+            correctAnswers++;
+            SOUNDS.correct.play();
+          } else {
+            SOUNDS.wrong.play();
+          }
+        }
+
+        if (correctAnswers === totalProblems) {
+          SOUNDS.victory.play();
+          villain.defeated = true;
+          addScore(100);
+          if (currentLevel === 4) {
+            endGame();
+          } else {
+            currentLevel++;
+            initializeGame();
+          }
+        } else {
+          SOUNDS.damage.play();
+          alert("No has derrotado al villano. Intenta de nuevo.");
+        }
+      }
+
+      function checkCalculatorCollision() {
+        if (
+          calculator &&
+          !calculator.collected &&
+          player.x < calculator.x + calculator.size &&
+          player.x + player.size > calculator.x &&
+          player.y < calculator.y + calculator.size &&
+          player.y + player.size > calculator.y
+        ) {
+          collectCalculator();
+        }
+      }
+
+      function collectCalculator() {
+        SOUNDS.victory.play();
+        calculator.collected = true;
+        addScore(50);
+        if (currentLevel < 4) {
+          currentLevel++;
+          initializeGame();
+        } else {
+          endGame();
+        }
+      }
+
+      function addScore(points) {
+        score += points;
+      }
+
+      function endGame() {
+        gameOver = true;
+        SOUNDS.background.pause();
+        SOUNDS.victory.play();
+        alert(
+          `¡Felicidades! Has completado el juego con un total de ${score} puntos.`
+        );
+      }
+
+      function checkGameOver() {
+        if (gameOver) {
+          fill(255, 0, 0);
+          textSize(32);
+          text("¡Juego Terminado!", width / 2 - 100, height / 2);
+        }
+      }
+
+      function moveVillain() {
+        if (villain && !villain.defeated) {
+          villain.x += villainDirection * 1; // Mover un píxel en cada frame
+          if (
+            villain.x <= 0 ||
+            villain.x >= width - villain.size ||
+            isVillainCollisionWithWalls()
+          ) {
+            villainDirection *= -1; // Cambiar la dirección cuando el villano llega al borde o colisiona con una pared
+          }
+        }
+      }
+
+      function isVillainCollisionWithWalls() {
+        for (let wall of walls) {
+          if (
+            villain.x < wall.x + wall.size &&
+            villain.x + villain.size > wall.x &&
+            villain.y < wall.y + wall.size &&
+            villain.y + villain.size > wall.y
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      document.getElementById("skipButton").addEventListener("click", () => {
+        document.getElementById("introVideo").pause();
+        document.getElementById("videoContainer").style.display = "none";
+        SOUNDS.background.play();
+      });
+
+      document.getElementById("startButton").addEventListener("click", () => {
+        document.getElementById("startButton").style.display = "none";
+        initializeGame();
+      });
     </script>
   </body>
 </html>
+
