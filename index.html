@@ -168,13 +168,13 @@
               "W P           W W",
               "W W WWWWWWW WWW W",
               "W W       W  D  W",
-              "W WWWWW W WWWWW W",
-              "W     W W     W W",
+              "W WWWWW W WWWWWWW",
+              "W   D W W     W W",
               "W WWW W WWWWW W W",
-              "W W   W     W D W",
-              "W W WWWWWWW WW  W",
-              "W W    D    W D W",
-              "W WWWWWWWWW     W",
+              "W W   W  D  W D W",
+              "W W WWWWWWWWWWWWW",
+              "W W   D         W",
+              "W WWWWWWWWW      W",
               "WWWWWWWWWWWWWWWW",
             ],
           },
@@ -305,9 +305,6 @@
         gameStarted = true;
         gameOver = false;
         createMaze();
-        SOUNDS.background.loop = true;
-        SOUNDS.background.volume = 0.5;
-        SOUNDS.background.play();
       }
 
       function createMaze() {
@@ -323,14 +320,22 @@
               player.y = y * 50;
             } else if (maze[y][x] === "D") {
               doors.push({ x: x * 50, y: y * 50, size: 50, open: false });
+              // Add treasure near each door
+              treasures.push({
+                x: x * 50 + 50,
+                y: y * 50,
+                size: 50,
+                image: level.treasure.image,
+                collected: false,
+              });
             }
           }
         }
 
         // Posición del villano (V)
         villain = {
-          x: 650, // Cambia esta coordenada para mover al villano
-          y: 500, // Cambia esta coordenada para mover al villano
+          x: 650,
+          y: 500, // Updated Y position to 500
           size: 50,
           name: level.villain.name,
           image: level.villain.image,
@@ -339,8 +344,8 @@
 
         // Posición de la calculadora (C)
         calculator = {
-          x: 700, // Cambia esta coordenada para mover la calculadora
-          y: 500, // Cambia esta coordenada para mover la calculadora
+          x: 750,
+          y: 500,
           size: 50,
           image: GAME_CONFIG.finalPrize.image,
           collected: false,
@@ -414,8 +419,41 @@
         let newX = player.x;
         let newY = player.y;
 
-        if (keyCode === LEFT_ARROW) newX -= speed;
-        if (keyCode === RIGHT_ARROW) newX += speed;
+        if (keyCode === LEFT_ARROW) {
+          newX -= speed;
+          // Flip sprite left
+          playerImg = loadImage("images/scientist.png", (img) => {
+            img.loadPixels();
+            for (let y = 0; y < img.height; y++) {
+              for (let x = 0; x < img.width / 2; x++) {
+                let loc1 = (x + y * img.width) * 4;
+                let loc2 = (img.width - 1 - x + y * img.width) * 4;
+                [img.pixels[loc1], img.pixels[loc2]] = [
+                  img.pixels[loc2],
+                  img.pixels[loc1],
+                ];
+                [img.pixels[loc1 + 1], img.pixels[loc2 + 1]] = [
+                  img.pixels[loc2 + 1],
+                  img.pixels[loc1 + 1],
+                ];
+                [img.pixels[loc1 + 2], img.pixels[loc2 + 2]] = [
+                  img.pixels[loc2 + 2],
+                  img.pixels[loc1 + 2],
+                ];
+                [img.pixels[loc1 + 3], img.pixels[loc2 + 3]] = [
+                  img.pixels[loc2 + 3],
+                  img.pixels[loc1 + 3],
+                ];
+              }
+            }
+            img.updatePixels();
+          });
+        }
+        if (keyCode === RIGHT_ARROW) {
+          newX += speed;
+          // Reset sprite to face right
+          playerImg = loadImage("images/scientist.png");
+        }
         if (keyCode === UP_ARROW) newY -= speed;
         if (keyCode === DOWN_ARROW) newY += speed;
 
@@ -490,7 +528,6 @@
           SOUNDS.doorOpen.play();
           door.open = true;
           createTreasure(door.x + 2, door.y); // Tesoro aparece a 2 píxeles de la puerta
-          addScore(20);
         } else {
           SOUNDS.wrong.play();
           alert("Respuesta incorrecta. Intenta de nuevo.");
@@ -595,17 +632,148 @@
           SOUNDS.victory.play();
           villain.defeated = true;
           addScore(100);
-          if (currentLevel === 4) {
-            endGame();
-          } else {
-            currentLevel++;
-            initializeGame();
-          }
         } else {
           SOUNDS.damage.play();
           alert("No has derrotado al villano. Intenta de nuevo.");
         }
       }
+
+      function checkCalculatorCollision() {
+        if (
+          calculator &&
+          !calculator.collected &&
+          player.x < calculator.x + calculator.size &&
+          player.x + player.size > calculator.x &&
+          player.y < calculator.y + calculator.size &&
+          player.y + player.size > calculator.y
+        ) {
+          collectCalculator();
+        }
+      }
+
+      function collectCalculator() {
+        SOUNDS.victory.play();
+        calculator.collected = true;
+        addScore(50);
+        if (currentLevel < 4) {
+          const nextLevel = currentLevel + 1;
+          currentLevel = nextLevel;
+          initializeGame();
+        } else {
+          endGame();
+        }
+      }
+
+      function addScore(points) {
+        score += points;
+      }
+
+      function endGame() {
+        gameOver = true;
+        SOUNDS.background.pause();
+        SOUNDS.victory.play();
+        alert(
+          `¡Felicidades! Has completado el juego con un total de ${score} puntos.`
+        );
+      }
+
+      function checkGameOver() {
+        if (gameOver) {
+          fill(255, 0, 0);
+          textSize(32);
+          text("¡Juego Terminado!", width / 2 - 100, height / 2);
+        }
+      }
+
+      function moveVillain() {
+        if (villain && !villain.defeated) {
+          // Move villain horizontally
+          villain.x += villainDirection * 2;
+
+          // Check for wall collisions
+          for (let wall of walls) {
+            if (
+              villain.x < wall.x + wall.size &&
+              villain.x + villain.size > wall.x &&
+              villain.y < wall.y + wall.size &&
+              villain.y + villain.size > wall.y
+            ) {
+              // Reverse direction if hitting a wall
+              villainDirection *= -1;
+              villain.x += villainDirection * 2;
+
+              // Flip villain sprite based on direction
+              if (villainDirection > 0) {
+                villain.image.loadPixels();
+                for (let y = 0; y < villain.image.height; y++) {
+                  for (let x = 0; x < villain.image.width / 2; x++) {
+                    let loc1 = (x + y * villain.image.width) * 4;
+                    let loc2 =
+                      (villain.image.width - 1 - x + y * villain.image.width) *
+                      4;
+                    [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
+                      villain.image.pixels[loc2],
+                      villain.image.pixels[loc1],
+                    ];
+                    [
+                      villain.image.pixels[loc1 + 1],
+                      villain.image.pixels[loc2 + 1],
+                    ] = [
+                      villain.image.pixels[loc2 + 1],
+                      villain.image.pixels[loc1 + 1],
+                    ];
+                    [
+                      villain.image.pixels[loc1 + 2],
+                      villain.image.pixels[loc2 + 2],
+                    ] = [
+                      villain.image.pixels[loc2 + 2],
+                      villain.image.pixels[loc1 + 2],
+                    ];
+                    [
+                      villain.image.pixels[loc1 + 3],
+                      villain.image.pixels[loc2 + 3],
+                    ] = [
+                      villain.image.pixels[loc2 + 3],
+                      villain.image.pixels[loc1 + 3],
+                    ];
+                  }
+                }
+                villain.image.updatePixels();
+              }
+              break;
+            }
+          }
+
+          // Keep villain within canvas bounds
+          if (villain.x <= 0 || villain.x >= width - villain.size) {
+            villainDirection *= -1;
+            villain.x += villainDirection * 2;
+          }
+        }
+      }
+
+      function isVillainCollisionWithWalls() {
+        for (let wall of walls) {
+          if (
+            villain.x < wall.x + wall.size &&
+            villain.x + villain.size > wall.x &&
+            villain.y < wall.y + wall.size &&
+            villain.y + villain.size > wall.y
+          ) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      document
+        .getElementById("skipButton")
+        .addEventListener("click", function () {
+          document.getElementById("videoContainer").style.display = "none";
+          SOUNDS.background.loop = true;
+          SOUNDS.background.volume = 0.5;
+          SOUNDS.background.play();
+        });
 
       function checkCalculatorCollision() {
         if (
@@ -655,13 +823,67 @@
 
       function moveVillain() {
         if (villain && !villain.defeated) {
-          villain.x += villainDirection * 1; // Mover un píxel en cada frame
-          if (
-            villain.x <= 0 ||
-            villain.x >= width - villain.size ||
-            isVillainCollisionWithWalls()
-          ) {
-            villainDirection *= -1; // Cambiar la dirección cuando el villano llega al borde o colisiona con una pared
+          // Store the previous position
+          let newX = villain.x + villainDirection * 2;
+
+          // Check for wall collisions at the new position
+          let willCollide = false;
+          for (let wall of walls) {
+            if (
+              newX < wall.x + wall.size &&
+              newX + villain.size > wall.x &&
+              villain.y < wall.y + wall.size &&
+              villain.y + villain.size > wall.y
+            ) {
+              willCollide = true;
+              break;
+            }
+          }
+
+          // If there will be a collision or at boundaries, reverse direction
+          if (willCollide || newX <= 50 || newX >= 700) {
+            villainDirection *= -1;
+            // Flip villain sprite based on direction
+            if (currentLevel === 1) {
+              // Only for villain1
+              villain.image.loadPixels();
+              for (let y = 0; y < villain.image.height; y++) {
+                for (let x = 0; x < villain.image.width / 2; x++) {
+                  let loc1 = (x + y * villain.image.width) * 4;
+                  let loc2 =
+                    (villain.image.width - 1 - x + y * villain.image.width) * 4;
+                  [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
+                    villain.image.pixels[loc2],
+                    villain.image.pixels[loc1],
+                  ];
+                  [
+                    villain.image.pixels[loc1 + 1],
+                    villain.image.pixels[loc2 + 1],
+                  ] = [
+                    villain.image.pixels[loc2 + 1],
+                    villain.image.pixels[loc1 + 1],
+                  ];
+                  [
+                    villain.image.pixels[loc1 + 2],
+                    villain.image.pixels[loc2 + 2],
+                  ] = [
+                    villain.image.pixels[loc2 + 2],
+                    villain.image.pixels[loc1 + 2],
+                  ];
+                  [
+                    villain.image.pixels[loc1 + 3],
+                    villain.image.pixels[loc2 + 3],
+                  ] = [
+                    villain.image.pixels[loc2 + 3],
+                    villain.image.pixels[loc1 + 3],
+                  ];
+                }
+              }
+              villain.image.updatePixels();
+            }
+          } else {
+            // If no collision, update position
+            villain.x = newX;
           }
         }
       }
@@ -693,4 +915,3 @@
     </script>
   </body>
 </html>
-
