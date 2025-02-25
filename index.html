@@ -185,15 +185,15 @@
             maze: [
               "WWWWWWWWWWWWWWWW",
               "W P  W     W D W",
-              "W WW W WWW W W W",
+              "W WW W WWW W WWW",
               "W    W   W   W W",
               "W WWWW W WWWWW W",
               "W D    W       W",
-              "W WWWWWW WWWWW W",
-              "W        W D   W",
-              "W WWWWWW W WWW W",
-              "W D      W     W",
-              "W WWWWWWWW     W",
+              "W WWWWWWWWWWWWWW",
+              "W          D   W",
+              "W WWWWWWWW WWWWW",
+              "W    D   W     W",
+              "W WWWWWWWW      ",
               "WWWWWWWWWWWWWWWW",
             ],
           },
@@ -206,16 +206,16 @@
             },
             maze: [
               "WWWWWWWWWWWWWWWW",
-              "W P      W     W",
-              "W WWWWW  W  W  W",
-              "W     W  W  W  W",
-              "WWWW  W  W  W  W",
-              "W D    W    W  W",
-              "W WWWWWW WW W  W",
-              "W        W  W D W",
-              "W WWWWWWWW  W  W",
-              "W D           W W",
-              "W WWWWWWWW D   W",
+              "W P      W   D W",
+              "W WWWWW  W  WWWW",
+              "W     W  W  WW W",
+              "W WWWWWWWW  WW W",
+              "W D    W    WW W",
+              "W WWWWWW WW WW W",
+              "W  D     W  WW W",
+              "W WWWWWWWW  WW W",
+              "W D      W     W",
+              "W WWWWWWWW      ",
               "WWWWWWWWWWWWWWWW",
             ],
           },
@@ -229,15 +229,15 @@
             maze: [
               "WWWWWWWWWWWWWWWW",
               "W P        W D W",
-              "W WWWWWWW  W W W",
+              "WWWWWWWWW  W W W",
               "W       W    W W",
               "WWWWWW  WWWWWW W",
               "W D     W      W",
-              "W WWWWWWW WWWW W",
+              "W WWWWWWW WWWWWW",
               "W         W D  W",
-              "W WWWWWWWWW WW W",
+              "W WWWWWWWWW WWWW",
               "W D           W W",
-              "W WWWWWWWWWW   W",
+              "W WWWWWWWWWW    ",
               "WWWWWWWWWWWWWWWW",
             ],
           },
@@ -498,25 +498,35 @@
       function openDoor(door) {
         const level = GAME_CONFIG.levels[currentLevel - 1];
         const operation = level.operation;
-        let num1 = int(random(1, 10));
-        let num2 = int(random(1, 10));
-        let answer;
+        let num1, num2, answer;
         let question;
 
         switch (operation) {
           case "suma":
+            num1 = int(random(1, 10));
+            num2 = int(random(1, 10));
             answer = num1 + num2;
             question = `¿Cuánto es ${num1} + ${num2}?`;
             break;
           case "resta":
+            num2 = int(random(1, 10));
+            num1 = int(random(1, 10));
+            // Ensure num1 is greater than or equal to num2 for positive results
+            if (num2 > num1) [num1, num2] = [num2, num1];
             answer = num1 - num2;
             question = `¿Cuánto es ${num1} - ${num2}?`;
             break;
           case "multiplicación":
+            num1 = int(random(1, 10));
+            num2 = int(random(1, 10));
             answer = num1 * num2;
             question = `¿Cuánto es ${num1} × ${num2}?`;
             break;
           case "división":
+            num2 = int(random(1, 10));
+            num1 = int(random(1, 10));
+            // Ensure division results in a whole number
+            num1 = num1 * num2;
             answer = num1 / num2;
             question = `¿Cuánto es ${num1} ÷ ${num2}?`;
             break;
@@ -576,42 +586,55 @@
           player.y < villain.y + villain.size &&
           player.y + player.size > villain.y
         ) {
+          SOUNDS.background.pause();
           confrontVillain();
         }
       }
 
       function confrontVillain() {
+        SOUNDS.background.pause();
+        SOUNDS.problem.play(); // Play boss fight music at the start of confrontation
         let correctAnswers = 0;
         const totalProblems = 4;
         const level = GAME_CONFIG.levels[currentLevel - 1];
         const operation = level.operation;
 
         for (let i = 0; i < totalProblems; i++) {
-          let num1 = int(random(1, 10));
-          let num2 = int(random(1, 10));
-          let answer;
+          let num1, num2, answer;
           let question;
 
           switch (operation) {
             case "suma":
+              num1 = int(random(1, 10));
+              num2 = int(random(1, 10));
               answer = num1 + num2;
               question = `Problema ${
                 i + 1
               }/${totalProblems}: ¿Cuánto es ${num1} + ${num2}?`;
               break;
             case "resta":
+              num2 = int(random(1, 10));
+              num1 = int(random(1, 10));
+              // Ensure num1 is greater than or equal to num2 for positive results
+              if (num2 > num1) [num1, num2] = [num2, num1];
               answer = num1 - num2;
               question = `Problema ${
                 i + 1
               }/${totalProblems}: ¿Cuánto es ${num1} - ${num2}?`;
               break;
             case "multiplicación":
+              num1 = int(random(1, 10));
+              num2 = int(random(1, 10));
               answer = num1 * num2;
               question = `Problema ${
                 i + 1
               }/${totalProblems}: ¿Cuánto es ${num1} × ${num2}?`;
               break;
             case "división":
+              num2 = int(random(1, 10));
+              num1 = int(random(1, 10));
+              // Ensure division results in a whole number
+              num1 = num1 * num2;
               answer = num1 / num2;
               question = `Problema ${
                 i + 1
@@ -628,13 +651,16 @@
           }
         }
 
+        SOUNDS.problem.pause(); // Stop boss fight music when battle is over
         if (correctAnswers === totalProblems) {
           SOUNDS.victory.play();
           villain.defeated = true;
           addScore(100);
+          SOUNDS.background.play(); // Resume background music after victory
         } else {
           SOUNDS.damage.play();
           alert("No has derrotado al villano. Intenta de nuevo.");
+          SOUNDS.background.play(); // Resume background music after failed attempt
         }
       }
 
@@ -656,9 +682,16 @@
         calculator.collected = true;
         addScore(50);
         if (currentLevel < 4) {
-          const nextLevel = currentLevel + 1;
-          currentLevel = nextLevel;
-          initializeGame();
+          currentLevel++;
+          walls = [];
+          doors = [];
+          treasures = [];
+          villain = null;
+          calculator = null;
+          player = { x: 50, y: 50, size: 50 };
+          villainDirection = 1;
+          createMaze();
+          SOUNDS.background.play();
         } else {
           endGame();
         }
@@ -794,7 +827,15 @@
         addScore(50);
         if (currentLevel < 4) {
           currentLevel++;
-          initializeGame();
+          walls = [];
+          doors = [];
+          treasures = [];
+          villain = null;
+          calculator = null;
+          player = { x: 50, y: 50, size: 50 };
+          villainDirection = 1;
+          createMaze();
+          SOUNDS.background.play();
         } else {
           endGame();
         }
