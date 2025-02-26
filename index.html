@@ -260,11 +260,15 @@
         gameOver: new Audio("sounds/game_over.mp3"),
       };
 
+      let lives = 3;
+      let heartImg;
+
       function preload() {
         playerImg = loadImage("images/scientist.png");
         wallImg = loadImage("images/wall.png");
         floorImg = loadImage("images/floor.png");
         doorImg = loadImage("images/door.png");
+        heartImg = loadImage("images/heart.png");
         GAME_CONFIG.levels.forEach((level) => {
           level.villain.image = loadImage(level.villain.image);
           level.treasure.image = loadImage(level.treasure.image);
@@ -410,6 +414,10 @@
         fill(255);
         textSize(20);
         text(`Puntos: ${score}`, 20, 30);
+        // Draw hearts for lives
+        for (let i = 0; i < lives; i++) {
+          image(heartImg, 20 + i * 40, 40, 30, 30);
+        }
       }
 
       function keyPressed() {
@@ -885,43 +893,40 @@
           if (willCollide || newX <= 50 || newX >= 700) {
             villainDirection *= -1;
             // Flip villain sprite based on direction
-            if (currentLevel === 1) {
-              // Only for villain1
-              villain.image.loadPixels();
-              for (let y = 0; y < villain.image.height; y++) {
-                for (let x = 0; x < villain.image.width / 2; x++) {
-                  let loc1 = (x + y * villain.image.width) * 4;
-                  let loc2 =
-                    (villain.image.width - 1 - x + y * villain.image.width) * 4;
-                  [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
-                    villain.image.pixels[loc2],
-                    villain.image.pixels[loc1],
-                  ];
-                  [
-                    villain.image.pixels[loc1 + 1],
-                    villain.image.pixels[loc2 + 1],
-                  ] = [
-                    villain.image.pixels[loc2 + 1],
-                    villain.image.pixels[loc1 + 1],
-                  ];
-                  [
-                    villain.image.pixels[loc1 + 2],
-                    villain.image.pixels[loc2 + 2],
-                  ] = [
-                    villain.image.pixels[loc2 + 2],
-                    villain.image.pixels[loc1 + 2],
-                  ];
-                  [
-                    villain.image.pixels[loc1 + 3],
-                    villain.image.pixels[loc2 + 3],
-                  ] = [
-                    villain.image.pixels[loc2 + 3],
-                    villain.image.pixels[loc1 + 3],
-                  ];
-                }
+            villain.image.loadPixels();
+            for (let y = 0; y < villain.image.height; y++) {
+              for (let x = 0; x < villain.image.width / 2; x++) {
+                let loc1 = (x + y * villain.image.width) * 4;
+                let loc2 =
+                  (villain.image.width - 1 - x + y * villain.image.width) * 4;
+                [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
+                  villain.image.pixels[loc2],
+                  villain.image.pixels[loc1],
+                ];
+                [
+                  villain.image.pixels[loc1 + 1],
+                  villain.image.pixels[loc2 + 1],
+                ] = [
+                  villain.image.pixels[loc2 + 1],
+                  villain.image.pixels[loc1 + 1],
+                ];
+                [
+                  villain.image.pixels[loc1 + 2],
+                  villain.image.pixels[loc2 + 2],
+                ] = [
+                  villain.image.pixels[loc2 + 2],
+                  villain.image.pixels[loc1 + 2],
+                ];
+                [
+                  villain.image.pixels[loc1 + 3],
+                  villain.image.pixels[loc2 + 3],
+                ] = [
+                  villain.image.pixels[loc2 + 3],
+                  villain.image.pixels[loc1 + 3],
+                ];
               }
-              villain.image.updatePixels();
             }
+            villain.image.updatePixels();
           } else {
             // If no collision, update position
             villain.x = newX;
