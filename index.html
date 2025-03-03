@@ -155,6 +155,7 @@
       let wallImg;
       let floorImg;
       let doorImg;
+      let heartImg;
       let villainDirection = 1;
 
       const GAME_CONFIG = {
@@ -261,7 +262,6 @@
       };
 
       let lives = 3;
-      let heartImg;
 
       function preload() {
         playerImg = loadImage("images/scientist.png");
@@ -295,6 +295,9 @@
         showScore();
         checkGameOver();
         moveVillain();
+
+        // Verificar colisión con tesoros
+        checkTreasureCollision();
       }
 
       function initializeGame() {
@@ -324,7 +327,7 @@
               player.y = y * 50;
             } else if (maze[y][x] === "D") {
               doors.push({ x: x * 50, y: y * 50, size: 50, open: false });
-              // Add treasure near each door
+              // Añadir un tesoro cerca de cada puerta
               treasures.push({
                 x: x * 50 + 50,
                 y: y * 50,
@@ -336,17 +339,17 @@
           }
         }
 
-        // Posición del villano (V)
+        // Posición del villano
         villain = {
           x: 650,
-          y: 500, // Updated Y position to 500
+          y: 500,
           size: 50,
           name: level.villain.name,
           image: level.villain.image,
           defeated: false,
         };
 
-        // Posición de la calculadora (C)
+        // Posición de la calculadora
         calculator = {
           x: 750,
           y: 500,
@@ -363,7 +366,17 @@
       }
 
       function drawPlayer() {
-        image(playerImg, player.x, player.y, player.size, player.size);
+        push();
+        if (player.direction === -1) {
+          // Flip horizontally for left direction
+          translate(player.x + player.size, player.y);
+          scale(-1, 1);
+          image(playerImg, 0, 0, player.size, player.size);
+        } else {
+          // Normal drawing for right direction
+          image(playerImg, player.x, player.y, player.size, player.size);
+        }
+        pop();
       }
 
       function drawDoors() {
@@ -376,25 +389,37 @@
 
       function drawTreasures() {
         treasures.forEach((treasure) => {
-          image(
-            treasure.image,
-            treasure.x,
-            treasure.y,
-            treasure.size,
-            treasure.size
-          );
+          if (!treasure.collected) {
+            image(
+              treasure.image,
+              treasure.x,
+              treasure.y,
+              treasure.size,
+              treasure.size
+            );
+          }
         });
       }
 
       function drawVillain() {
         if (villain && !villain.defeated) {
-          image(
-            villain.image,
-            villain.x,
-            villain.y,
-            villain.size,
-            villain.size
-          );
+          push();
+          if (villainDirection === -1) {
+            // Flip horizontally for left direction
+            translate(villain.x + villain.size, villain.y);
+            scale(-1, 1);
+            image(villain.image, 0, 0, villain.size, villain.size);
+          } else {
+            // Normal drawing for right direction
+            image(
+              villain.image,
+              villain.x,
+              villain.y,
+              villain.size,
+              villain.size
+            );
+          }
+          pop();
         }
       }
 
@@ -414,9 +439,9 @@
         fill(255);
         textSize(20);
         text(`Puntos: ${score}`, 20, 30);
-        // Draw hearts for lives
+        // Dibujar corazones para las vidas
         for (let i = 0; i < lives; i++) {
-          image(heartImg, 20 + i * 40, 40, 30, 30);
+          image(heartImg, width - 50 - i * 40, 10, 30, 30);
         }
       }
 
@@ -429,47 +454,23 @@
 
         if (keyCode === LEFT_ARROW) {
           newX -= speed;
-          // Flip sprite left
-          playerImg = loadImage("images/scientist.png", (img) => {
-            img.loadPixels();
-            for (let y = 0; y < img.height; y++) {
-              for (let x = 0; x < img.width / 2; x++) {
-                let loc1 = (x + y * img.width) * 4;
-                let loc2 = (img.width - 1 - x + y * img.width) * 4;
-                [img.pixels[loc1], img.pixels[loc2]] = [
-                  img.pixels[loc2],
-                  img.pixels[loc1],
-                ];
-                [img.pixels[loc1 + 1], img.pixels[loc2 + 1]] = [
-                  img.pixels[loc2 + 1],
-                  img.pixels[loc1 + 1],
-                ];
-                [img.pixels[loc1 + 2], img.pixels[loc2 + 2]] = [
-                  img.pixels[loc2 + 2],
-                  img.pixels[loc1 + 2],
-                ];
-                [img.pixels[loc1 + 3], img.pixels[loc2 + 3]] = [
-                  img.pixels[loc2 + 3],
-                  img.pixels[loc1 + 3],
-                ];
-              }
-            }
-            img.updatePixels();
-          });
+          player.direction = -1; // Facing left
         }
         if (keyCode === RIGHT_ARROW) {
           newX += speed;
-          // Reset sprite to face right
-          playerImg = loadImage("images/scientist.png");
+          player.direction = 1; // Facing right
         }
-        if (keyCode === UP_ARROW) newY -= speed;
-        if (keyCode === DOWN_ARROW) newY += speed;
+        if (keyCode === UP_ARROW) {
+          newY -= speed;
+        }
+        if (keyCode === DOWN_ARROW) {
+          newY += speed;
+        }
 
         if (!isCollision(newX, newY)) {
           player.x = newX;
           player.y = newY;
           checkDoorCollision();
-          checkTreasureCollision();
           checkVillainCollision();
           checkCalculatorCollision();
         }
@@ -498,74 +499,54 @@
             player.y < door.y + door.size &&
             player.y + player.size > door.y
           ) {
-            openDoor(door);
+            const level = GAME_CONFIG.levels[currentLevel - 1];
+            let num1 = Math.floor(Math.random() * 10) + 1;
+            let num2 = Math.floor(Math.random() * 10) + 1;
+            let answer;
+            let operation = level.operation;
+            let question = "";
+
+            switch (operation) {
+              case "suma":
+                answer = num1 + num2;
+                question = `${num1} + ${num2}`;
+                break;
+              case "resta":
+                answer = num1 + num2;
+                num1 = answer;
+                question = `${num1} - ${num2}`;
+                answer = num1 - num2;
+                break;
+              case "multiplicación":
+                answer = num1 * num2;
+                question = `${num1} × ${num2}`;
+                break;
+              case "división":
+                answer = num1 * num2;
+                num1 = answer;
+                question = `${num1} ÷ ${num2}`;
+                answer = num1 / num2;
+                break;
+            }
+
+            let userAnswer = prompt(
+              `¡Resuelve esta operación para abrir la puerta!\n${question} = `
+            );
+            if (userAnswer !== null && parseInt(userAnswer) === answer) {
+              SOUNDS.correct.play();
+              door.open = true;
+              score += 10;
+            } else {
+              SOUNDS.wrong.play();
+              lives--;
+            }
           }
         }
       }
 
-      function openDoor(door) {
-        const level = GAME_CONFIG.levels[currentLevel - 1];
-        const operation = level.operation;
-        let num1, num2, answer;
-        let question;
-
-        switch (operation) {
-          case "suma":
-            num1 = int(random(1, 10));
-            num2 = int(random(1, 10));
-            answer = num1 + num2;
-            question = `¿Cuánto es ${num1} + ${num2}?`;
-            break;
-          case "resta":
-            num2 = int(random(1, 10));
-            num1 = int(random(1, 10));
-            // Ensure num1 is greater than or equal to num2 for positive results
-            if (num2 > num1) [num1, num2] = [num2, num1];
-            answer = num1 - num2;
-            question = `¿Cuánto es ${num1} - ${num2}?`;
-            break;
-          case "multiplicación":
-            num1 = int(random(1, 10));
-            num2 = int(random(1, 10));
-            answer = num1 * num2;
-            question = `¿Cuánto es ${num1} × ${num2}?`;
-            break;
-          case "división":
-            num2 = int(random(1, 10));
-            num1 = int(random(1, 10));
-            // Ensure division results in a whole number
-            num1 = num1 * num2;
-            answer = num1 / num2;
-            question = `¿Cuánto es ${num1} ÷ ${num2}?`;
-            break;
-        }
-
-        const userAnswer = parseInt(prompt(question));
-        if (userAnswer === answer) {
-          SOUNDS.correct.play();
-          SOUNDS.doorOpen.play();
-          door.open = true;
-          createTreasure(door.x + 2, door.y); // Tesoro aparece a 2 píxeles de la puerta
-        } else {
-          SOUNDS.wrong.play();
-          alert("Respuesta incorrecta. Intenta de nuevo.");
-        }
-      }
-
-      function createTreasure(x, y) {
-        const level = GAME_CONFIG.levels[currentLevel - 1];
-        const treasure = {
-          x: x,
-          y: y,
-          size: 50,
-          image: level.treasure.image,
-          collected: false,
-        };
-        treasures.push(treasure);
-      }
-
       function checkTreasureCollision() {
-        for (let treasure of treasures) {
+        for (let i = treasures.length - 1; i >= 0; i--) {
+          let treasure = treasures[i];
           if (
             !treasure.collected &&
             player.x < treasure.x + treasure.size &&
@@ -573,16 +554,12 @@
             player.y < treasure.y + treasure.size &&
             player.y + player.size > treasure.y
           ) {
-            collectTreasure(treasure);
+            treasure.collected = true;
+            score += 20; // Sumar puntos por recolectar el tesoro
+            SOUNDS.treasure.play(); // Reproducir sonido de tesoro recolectado
+            treasures.splice(i, 1); // Eliminar el tesoro de la lista
           }
         }
-      }
-
-      function collectTreasure(treasure) {
-        SOUNDS.treasure.play();
-        treasure.collected = true;
-        addScore(20);
-        treasures = treasures.filter((t) => t !== treasure);
       }
 
       function checkVillainCollision() {
@@ -594,81 +571,66 @@
           player.y < villain.y + villain.size &&
           player.y + player.size > villain.y
         ) {
-          SOUNDS.background.pause();
-          confrontVillain();
-        }
-      }
-
-      function confrontVillain() {
-        SOUNDS.background.pause();
-        SOUNDS.problem.play(); // Play boss fight music at the start of confrontation
-        let correctAnswers = 0;
-        const totalProblems = 4;
-        const level = GAME_CONFIG.levels[currentLevel - 1];
-        const operation = level.operation;
-
-        for (let i = 0; i < totalProblems; i++) {
-          let num1, num2, answer;
-          let question;
-
-          switch (operation) {
-            case "suma":
-              num1 = int(random(1, 10));
-              num2 = int(random(1, 10));
-              answer = num1 + num2;
-              question = `Problema ${
-                i + 1
-              }/${totalProblems}: ¿Cuánto es ${num1} + ${num2}?`;
-              break;
-            case "resta":
-              num2 = int(random(1, 10));
-              num1 = int(random(1, 10));
-              // Ensure num1 is greater than or equal to num2 for positive results
-              if (num2 > num1) [num1, num2] = [num2, num1];
-              answer = num1 - num2;
-              question = `Problema ${
-                i + 1
-              }/${totalProblems}: ¿Cuánto es ${num1} - ${num2}?`;
-              break;
-            case "multiplicación":
-              num1 = int(random(1, 10));
-              num2 = int(random(1, 10));
-              answer = num1 * num2;
-              question = `Problema ${
-                i + 1
-              }/${totalProblems}: ¿Cuánto es ${num1} × ${num2}?`;
-              break;
-            case "división":
-              num2 = int(random(1, 10));
-              num1 = int(random(1, 10));
-              // Ensure division results in a whole number
-              num1 = num1 * num2;
-              answer = num1 / num2;
-              question = `Problema ${
-                i + 1
-              }/${totalProblems}: ¿Cuánto es ${num1} ÷ ${num2}?`;
-              break;
+          // Activar el sonido de bossfight si no está sonando
+          if (SOUNDS.problem.paused) {
+            SOUNDS.problem.play();
+            SOUNDS.background.pause(); // Pausar la música de fondo
           }
 
-          const userAnswer = parseInt(prompt(question));
-          if (userAnswer === answer) {
-            correctAnswers++;
-            SOUNDS.correct.play();
+          const level = GAME_CONFIG.levels[currentLevel - 1];
+          let correctAnswers = 0;
+          let totalQuestions = 4;
+
+          for (let i = 0; i < totalQuestions; i++) {
+            let num1 = Math.floor(Math.random() * 10) + 1;
+            let num2 = Math.floor(Math.random() * 10) + 1;
+            let answer;
+            let operation = level.operation;
+            let question = "";
+
+            switch (operation) {
+              case "suma":
+                answer = num1 + num2;
+                question = `${num1} + ${num2}`;
+                break;
+              case "resta":
+                answer = num1 + num2;
+                num1 = answer;
+                question = `${num1} - ${num2}`;
+                answer = num1 - num2;
+                break;
+              case "multiplicación":
+                answer = num1 * num2;
+                question = `${num1} × ${num2}`;
+                break;
+              case "división":
+                answer = num1 * num2;
+                num1 = answer;
+                question = `${num1} ÷ ${num2}`;
+                answer = num1 / num2;
+                break;
+            }
+
+            let userAnswer = prompt(`¡Ecuación ${i + 1} de 4!\n${question} = `);
+            if (userAnswer !== null && parseInt(userAnswer) === answer) {
+              SOUNDS.correct.play();
+              correctAnswers++;
+            } else {
+              SOUNDS.wrong.play();
+            }
+          }
+
+          if (correctAnswers === totalQuestions) {
+            // Derrotar al villano
+            villain.defeated = true;
+            score += 50;
+            SOUNDS.victory.play();
+            SOUNDS.problem.pause(); // Detener el sonido de bossfight
+            SOUNDS.background.play(); // Reanudar la música de fondo
           } else {
-            SOUNDS.wrong.play();
+            lives--;
+            SOUNDS.damage.play();
           }
-        }
-
-        SOUNDS.problem.pause(); // Stop boss fight music when battle is over
-        if (correctAnswers === totalProblems) {
-          SOUNDS.victory.play();
-          villain.defeated = true;
-          addScore(100);
-          SOUNDS.background.play(); // Resume background music after victory
-        } else {
-          SOUNDS.damage.play();
-          alert("No has derrotado al villano. Intenta de nuevo.");
-          SOUNDS.background.play(); // Resume background music after failed attempt
         }
       }
 
@@ -688,7 +650,7 @@
       function collectCalculator() {
         SOUNDS.victory.play();
         calculator.collected = true;
-        addScore(50);
+        score += 50;
         if (currentLevel < 4) {
           currentLevel++;
           walls = [];
@@ -699,14 +661,10 @@
           player = { x: 50, y: 50, size: 50 };
           villainDirection = 1;
           createMaze();
-          SOUNDS.background.play();
+          // Removed redundant SOUNDS.background.play() since it's already playing
         } else {
           endGame();
         }
-      }
-
-      function addScore(points) {
-        score += points;
       }
 
       function endGame() {
@@ -719,10 +677,11 @@
       }
 
       function checkGameOver() {
-        if (gameOver) {
-          fill(255, 0, 0);
-          textSize(32);
-          text("¡Juego Terminado!", width / 2 - 100, height / 2);
+        if (lives <= 0) {
+          gameOver = true;
+          SOUNDS.background.pause();
+          SOUNDS.gameOver.play();
+          alert("¡Has perdido! Intenta de nuevo.");
         }
       }
 
@@ -739,213 +698,20 @@
               villain.y < wall.y + wall.size &&
               villain.y + villain.size > wall.y
             ) {
-              // Reverse direction if hitting a wall
+              // Reverse direction when hitting a wall
               villainDirection *= -1;
-              villain.x += villainDirection * 2;
-
-              // Flip villain sprite based on direction
-              if (villainDirection > 0) {
-                villain.image.loadPixels();
-                for (let y = 0; y < villain.image.height; y++) {
-                  for (let x = 0; x < villain.image.width / 2; x++) {
-                    let loc1 = (x + y * villain.image.width) * 4;
-                    let loc2 =
-                      (villain.image.width - 1 - x + y * villain.image.width) *
-                      4;
-                    [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
-                      villain.image.pixels[loc2],
-                      villain.image.pixels[loc1],
-                    ];
-                    [
-                      villain.image.pixels[loc1 + 1],
-                      villain.image.pixels[loc2 + 1],
-                    ] = [
-                      villain.image.pixels[loc2 + 1],
-                      villain.image.pixels[loc1 + 1],
-                    ];
-                    [
-                      villain.image.pixels[loc1 + 2],
-                      villain.image.pixels[loc2 + 2],
-                    ] = [
-                      villain.image.pixels[loc2 + 2],
-                      villain.image.pixels[loc1 + 2],
-                    ];
-                    [
-                      villain.image.pixels[loc1 + 3],
-                      villain.image.pixels[loc2 + 3],
-                    ] = [
-                      villain.image.pixels[loc2 + 3],
-                      villain.image.pixels[loc1 + 3],
-                    ];
-                  }
-                }
-                villain.image.updatePixels();
-              }
+              // Move villain away from wall to prevent sticking
+              villain.x += villainDirection * 4;
               break;
             }
           }
 
           // Keep villain within canvas bounds
-          if (villain.x <= 0 || villain.x >= width - villain.size) {
+          if (villain.x <= 0 || villain.x + villain.size >= width) {
             villainDirection *= -1;
-            villain.x += villainDirection * 2;
+            villain.x = constrain(villain.x, 0, width - villain.size);
           }
         }
-      }
-
-      function isVillainCollisionWithWalls() {
-        for (let wall of walls) {
-          if (
-            villain.x < wall.x + wall.size &&
-            villain.x + villain.size > wall.x &&
-            villain.y < wall.y + wall.size &&
-            villain.y + villain.size > wall.y
-          ) {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      document
-        .getElementById("skipButton")
-        .addEventListener("click", function () {
-          document.getElementById("videoContainer").style.display = "none";
-          SOUNDS.background.loop = true;
-          SOUNDS.background.volume = 0.5;
-          SOUNDS.background.play();
-        });
-
-      function checkCalculatorCollision() {
-        if (
-          calculator &&
-          !calculator.collected &&
-          player.x < calculator.x + calculator.size &&
-          player.x + player.size > calculator.x &&
-          player.y < calculator.y + calculator.size &&
-          player.y + player.size > calculator.y
-        ) {
-          collectCalculator();
-        }
-      }
-
-      function collectCalculator() {
-        SOUNDS.victory.play();
-        calculator.collected = true;
-        addScore(50);
-        if (currentLevel < 4) {
-          currentLevel++;
-          walls = [];
-          doors = [];
-          treasures = [];
-          villain = null;
-          calculator = null;
-          player = { x: 50, y: 50, size: 50 };
-          villainDirection = 1;
-          createMaze();
-          SOUNDS.background.play();
-        } else {
-          endGame();
-        }
-      }
-
-      function addScore(points) {
-        score += points;
-      }
-
-      function endGame() {
-        gameOver = true;
-        SOUNDS.background.pause();
-        SOUNDS.victory.play();
-        alert(
-          `¡Felicidades! Has completado el juego con un total de ${score} puntos.`
-        );
-      }
-
-      function checkGameOver() {
-        if (gameOver) {
-          fill(255, 0, 0);
-          textSize(32);
-          text("¡Juego Terminado!", width / 2 - 100, height / 2);
-        }
-      }
-
-      function moveVillain() {
-        if (villain && !villain.defeated) {
-          // Store the previous position
-          let newX = villain.x + villainDirection * 2;
-
-          // Check for wall collisions at the new position
-          let willCollide = false;
-          for (let wall of walls) {
-            if (
-              newX < wall.x + wall.size &&
-              newX + villain.size > wall.x &&
-              villain.y < wall.y + wall.size &&
-              villain.y + villain.size > wall.y
-            ) {
-              willCollide = true;
-              break;
-            }
-          }
-
-          // If there will be a collision or at boundaries, reverse direction
-          if (willCollide || newX <= 50 || newX >= 700) {
-            villainDirection *= -1;
-            // Flip villain sprite based on direction
-            villain.image.loadPixels();
-            for (let y = 0; y < villain.image.height; y++) {
-              for (let x = 0; x < villain.image.width / 2; x++) {
-                let loc1 = (x + y * villain.image.width) * 4;
-                let loc2 =
-                  (villain.image.width - 1 - x + y * villain.image.width) * 4;
-                [villain.image.pixels[loc1], villain.image.pixels[loc2]] = [
-                  villain.image.pixels[loc2],
-                  villain.image.pixels[loc1],
-                ];
-                [
-                  villain.image.pixels[loc1 + 1],
-                  villain.image.pixels[loc2 + 1],
-                ] = [
-                  villain.image.pixels[loc2 + 1],
-                  villain.image.pixels[loc1 + 1],
-                ];
-                [
-                  villain.image.pixels[loc1 + 2],
-                  villain.image.pixels[loc2 + 2],
-                ] = [
-                  villain.image.pixels[loc2 + 2],
-                  villain.image.pixels[loc1 + 2],
-                ];
-                [
-                  villain.image.pixels[loc1 + 3],
-                  villain.image.pixels[loc2 + 3],
-                ] = [
-                  villain.image.pixels[loc2 + 3],
-                  villain.image.pixels[loc1 + 3],
-                ];
-              }
-            }
-            villain.image.updatePixels();
-          } else {
-            // If no collision, update position
-            villain.x = newX;
-          }
-        }
-      }
-
-      function isVillainCollisionWithWalls() {
-        for (let wall of walls) {
-          if (
-            villain.x < wall.x + wall.size &&
-            villain.x + villain.size > wall.x &&
-            villain.y < wall.y + wall.size &&
-            villain.y + villain.size > wall.y
-          ) {
-            return true;
-          }
-        }
-        return false;
       }
 
       document.getElementById("skipButton").addEventListener("click", () => {
