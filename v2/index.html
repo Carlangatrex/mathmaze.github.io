@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Math Maze V2</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div><h1>Math Maze <span>V2</span></h1><p>El Laberinto Matemático del Científico</p></div>
+    <button id="startBtn" class="primary">Iniciar aventura</button>
+  </header>
+  <section class="hud" aria-label="Progreso">
+    <div>Nivel <strong id="level">1/4</strong></div>
+    <div>Puntos <strong id="score">0</strong></div>
+    <div>Aciertos <strong id="accuracy">100%</strong></div>
+    <div>Vidas <strong id="lives">♥ ♥ ♥</strong></div>
+  </section>
+  <div class="game-wrap"><canvas id="game" width="800" height="600"></canvas></div>
+  <p class="help">Flechas o WASD para moverte · Resuelve los retos para abrir puertas · Esc pausa</p>
+</main>
+
+<div id="challenge" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="panel">
+    <span id="challengeType" class="eyebrow">RETO MATEMÁTICO</span>
+    <h2 id="challengeTitle">Abre la puerta</h2>
+    <p id="question"></p>
+    <div id="answers" class="answers"></div>
+    <p id="feedback" class="feedback" aria-live="polite"></p>
+  </div>
+</div>
+
+<div id="message" class="modal hidden">
+  <div class="panel center">
+    <span class="eyebrow">MATH MAZE V2</span>
+    <h2 id="messageTitle"></h2>
+    <p id="messageText"></p>
+    <div id="summary" class="summary"></div>
+    <button id="restartBtn" class="primary">Jugar de nuevo</button>
+  </div>
+</div>
+
+<script type="module" src="./js/game.js"></script>
+</body>
+</html>
